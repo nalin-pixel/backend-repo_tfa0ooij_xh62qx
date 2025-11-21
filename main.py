@@ -98,6 +98,28 @@ def require_roles(*roles: str):
     return wrapper
 
 
+# ---------- Startup seed (default admin) ----------
+@app.on_event("startup")
+def seed_default_admin():
+    try:
+        admin_email = os.getenv("ADMIN_EMAIL", "admin@desa.test")
+        admin_password = os.getenv("ADMIN_PASSWORD", "Admin123!")
+        if not db["user"].find_one({"email": admin_email}):
+            user = User(
+                name="Administrator",
+                email=admin_email,
+                password_hash=hash_password(admin_password),
+                role="admin",
+            )
+            create_document("user", user)
+            # simple console log
+            print(f"[seed] Created default admin: {admin_email}")
+        else:
+            print("[seed] Admin already exists")
+    except Exception as e:
+        print(f"[seed] Error seeding admin: {e}")
+
+
 # ---------- Base Endpoints ----------
 @app.get("/")
 def root():
