@@ -5,14 +5,20 @@ from typing import List, Optional, Literal
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
+from pydantic import field_validator
 from jose import jwt, JWTError
 from passlib.context import CryptContext
+from dotenv import load_dotenv
+from email_validator import validate_email, EmailNotValidError
 
 from database import db, create_document, get_documents
 from schemas import (
     User, Penduduk, Keluarga, Surat, Bansos, PenerimaBansos, Keuangan, Asetdesa, Auditlog
 )
+
+# Load environment variables from .env if present
+load_dotenv()
 
 # ---------- Security Config ----------
 SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
@@ -39,15 +45,33 @@ class Token(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_relaxed(cls, v: str) -> str:
+        try:
+            info = validate_email(v, allow_smtputf8=True, allow_special_use=True)
+            return info.normalized
+        except EmailNotValidError as e:
+            raise ValueError(str(e))
 
 
 class RegisterRequest(BaseModel):
     name: str
-    email: EmailStr
+    email: str
     password: str
     role: Literal["warga", "admin", "staf", "kepala_desa"] = "warga"
+
+    @field_validator("email")
+    @classmethod
+    def validate_email_relaxed(cls, v: str) -> str:
+        try:
+            info = validate_email(v, allow_smtputf8=True, allow_special_use=True)
+            return info.normalized
+        except EmailNotValidError as e:
+            raise ValueError(str(e))
 
 
 def hash_password(password: str) -> str:
